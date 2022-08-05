@@ -1,6 +1,6 @@
 from .api_client import NutanixApiClient, NutanixSession
 from .nutanix_cluster import ClusterMetadata, ClusterSpec, ClusterStatus, NutanixCluster
-from .virtual_machine import NutanixVM, PowerState, VMMetadata, VMSpec, VMStatus
+from .nutanix_vm import NutanixVM, PowerState, VMMetadata, VMSpec, VMStatus
 
 __all__ = [
     "PowerState",
