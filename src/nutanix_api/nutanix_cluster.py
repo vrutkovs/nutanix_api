@@ -77,6 +77,5 @@ class NutanixCluster(ApiObject):
         return cls.get_from_info(api_client, cluster_info)
 
     @classmethod
-    def list_clusters(cls, api_client: NutanixApiClient) -> List["NutanixCluster"]:
-        clusters = api_client.POST("/clusters/list")
-        return [cls.get_from_info(api_client, cluster_info) for cluster_info in clusters["entities"]]
+    def list_clusters(cls, api_client: NutanixApiClient, get_all: bool = True) -> List["NutanixCluster"]:
+        return cls.list_entities(api_client, "clusters", get_all)

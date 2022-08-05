@@ -116,8 +116,8 @@ class NutanixVM(ApiObject):
         return self.spec.sockets
 
     @classmethod
-    def list_vms(cls, api_client: NutanixApiClient) -> List["NutanixVM"]:
-        return [cls.get_from_info(api_client, vm_info) for vm_info in api_client.POST("/vms/list")["entities"]]
+    def list_vms(cls, api_client: NutanixApiClient, get_all: bool = True) -> List["NutanixVM"]:
+        return cls.list_entities(api_client, "vms", get_all)
 
     @classmethod
     def get(cls, api_client: NutanixApiClient, uuid: str) -> "NutanixVM":

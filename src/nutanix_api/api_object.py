@@ -82,6 +82,22 @@ class ApiObject(ABC):
     def get(cls, api_client: NutanixApiClient, uuid: str) -> "ApiObject":
         pass
 
+    @classmethod
+    def list_entities(cls, api_client: NutanixApiClient, object_route: str, get_all: bool = True):
+        response = None
+        entities = []
+        offset = 0
+
+        while response is None or len(entities) < response["metadata"]["total_matches"]:
+            response = api_client.POST(f"/{object_route}/list", offset=offset)
+            entities += response["entities"]
+            offset = response["metadata"].get("length", 0)
+
+            if not get_all or offset == 0:
+                break
+
+        return [cls.get_from_info(api_client, info) for info in entities]
+
     def load(self, uuid: str) -> "ApiObject":
         vm = self.get(self._api_client, uuid)
         self._spec = vm.spec

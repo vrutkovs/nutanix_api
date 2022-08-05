@@ -44,7 +44,11 @@ class NutanixApiClient:
         self._url = self.URL_FORMAT.format(address=address, port=port)
 
     @classmethod
-    def _request(cls, url: str, method: Callable, body: Dict[str, Any] = None, timeout=DEFAULT_REQUEST_TIMEOUT):
+    def _request(
+        cls, url: str, method: Callable, body: Dict[str, Any] = None, offset: int = 0, timeout=DEFAULT_REQUEST_TIMEOUT
+    ):
+        if body is not None:
+            body["offset"] = offset
         server_response = method(url, timeout=timeout) if body is None else method(url, json=body)
         if server_response.status_code != HTTPStatus.OK and server_response.status_code != HTTPStatus.ACCEPTED:
             raise RequestError(server_response.json())
@@ -55,10 +59,10 @@ class NutanixApiClient:
         with NutanixSession(self._username, self._password) as session:
             return self._request(self._url + relative_url, session.get)
 
-    def POST(self, relative_url: str, body: Dict[str, Any] = None) -> Union[Dict[str, Any], None]:  # noqa
+    def POST(self, relative_url: str, body: dict = None, offset: int = 0) -> Union[Dict[str, Any], None]:  # noqa
         with NutanixSession(self._username, self._password) as session:
-            return self._request(self._url + relative_url, session.post, body or {})
+            return self._request(self._url + relative_url, session.post, body or {}, offset)
 
-    def PUT(self, relative_url: str, body: Dict[str, Any] = None) -> Union[Dict[str, Any], None]:  # noqa
+    def PUT(self, relative_url: str, body: dict = None, offset: int = 0) -> Union[Dict[str, Any], None]:  # noqa
         with NutanixSession(self._username, self._password) as session:
-            return self._request(self._url + relative_url, session.put, body or {})
+            return self._request(self._url + relative_url, session.put, body or {}, offset)
