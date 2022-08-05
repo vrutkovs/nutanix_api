@@ -111,6 +111,10 @@ class NutanixVM(ApiObject):
     def ip_addresses(self) -> List[str]:
         return self.spec.ip_endpoint_list
 
+    @property
+    def num_sockets(self) -> int:
+        return self.spec.sockets
+
     @classmethod
     def list_vms(cls, api_client: NutanixApiClient) -> List["NutanixVM"]:
         return [cls.get_from_info(api_client, vm_info) for vm_info in api_client.POST("/vms/list")["entities"]]
