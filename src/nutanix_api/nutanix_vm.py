@@ -113,17 +113,12 @@ class NutanixVM(ApiObject):
 
     @classmethod
     def list_vms(cls, api_client: NutanixApiClient) -> List["NutanixVM"]:
-        return [NutanixVM(api_client, **vm_info) for vm_info in api_client.POST("/vms/list")["entities"]]
+        return [cls.get_from_info(api_client, vm_info) for vm_info in api_client.POST("/vms/list")["entities"]]
 
     @classmethod
     def get(cls, api_client: NutanixApiClient, uuid: str) -> "NutanixVM":
         vm_info = api_client.GET(f"/vms/{uuid}")
-        return NutanixVM(
-            api_client,
-            status=VMStatus(vm_info.get("status", {})),
-            spec=VMSpec(vm_info.get("spec", {})),
-            metadata=VMMetadata(vm_info.get("metadata", {})),
-        )
+        return cls.get_from_info(api_client, vm_info)
 
     @classmethod
     def set_vms_power_state(cls, api_client: NutanixApiClient, uuid: str, state: PowerState):

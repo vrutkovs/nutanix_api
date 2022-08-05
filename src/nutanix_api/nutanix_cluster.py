@@ -51,8 +51,6 @@ class NutanixCluster(ApiObject):
             ClusterMetadata(kwargs.get("metadata", {})),
         )
 
-        super().__init__(api_client, kwargs.get("status", {}), kwargs.get("spec", {}), kwargs.get("metadata", {}))
-
     @property
     def external_ip(self) -> str:
         return self.spec.external_ip
@@ -76,14 +74,9 @@ class NutanixCluster(ApiObject):
     @classmethod
     def get(cls, api_client: NutanixApiClient, uuid: str) -> "NutanixCluster":
         cluster_info = api_client.GET(f"/clusters/{uuid}")
-        return NutanixCluster(
-            api_client,
-            status=ClusterStatus(cluster_info.get("status", {})),
-            spec=ClusterSpec(cluster_info.get("spec", {})),
-            metadata=ClusterMetadata(cluster_info.get("metadata", {})),
-        )
+        return cls.get_from_info(api_client, cluster_info)
 
     @classmethod
     def list_clusters(cls, api_client: NutanixApiClient) -> List["NutanixCluster"]:
         clusters = api_client.POST("/clusters/list")
-        return [NutanixCluster(api_client, **cluster_info) for cluster_info in clusters["entities"]]
+        return [cls.get_from_info(api_client, cluster_info) for cluster_info in clusters["entities"]]

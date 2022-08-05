@@ -88,3 +88,12 @@ class ApiObject(ABC):
         self._metadata = vm.metadata
         self._status = vm.status
         return self
+
+    @classmethod
+    def get_from_info(cls, api_client: NutanixApiClient, info: Dict[str, Any]) -> "ApiObject":
+        return cls(
+            api_client,
+            status=info.get("status", {}),
+            spec=info.get("spec", {}),
+            metadata=info.get("metadata", {}),
+        )

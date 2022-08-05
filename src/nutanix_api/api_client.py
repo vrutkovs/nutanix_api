@@ -4,7 +4,9 @@ from typing import Any, Callable, Dict, Union
 
 import requests
 from requests import Session
-from urllib3.exceptions import InsecureRequestWarning, RequestError
+from urllib3.exceptions import InsecureRequestWarning
+
+from .exceptions import RequestError
 
 
 class NutanixSession:
@@ -33,6 +35,7 @@ class NutanixSession:
 
 class NutanixApiClient:
     URL_FORMAT = "https://{address}:{port}/api/nutanix/v3/"  # noqa FS003
+    DEFAULT_REQUEST_TIMEOUT = 60
 
     def __init__(self, username: str, password: str, port: Union[str, int], address: str):
         self._username = username
@@ -41,8 +44,8 @@ class NutanixApiClient:
         self._url = self.URL_FORMAT.format(address=address, port=port)
 
     @classmethod
-    def _request(cls, url: str, method: Callable, body: Dict[str, Any] = None):
-        server_response = method(url) if body is None else method(url, json=body)
+    def _request(cls, url: str, method: Callable, body: Dict[str, Any] = None, timeout=DEFAULT_REQUEST_TIMEOUT):
+        server_response = method(url, timeout=timeout) if body is None else method(url, json=body)
         if server_response.status_code != HTTPStatus.OK and server_response.status_code != HTTPStatus.ACCEPTED:
             raise RequestError(server_response.json())
 
