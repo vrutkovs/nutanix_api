@@ -1,7 +1,8 @@
 from enum import Enum
 from typing import Any, Dict, List, Union
 
-from .api_client import ApiObject, NutanixApiClient
+from .api_client import NutanixApiClient
+from .api_object import ApiObject, Metadata, Spec, Status
 
 
 class PowerState(Enum):
@@ -9,21 +10,14 @@ class PowerState(Enum):
     ON = "ON"
 
 
-class VMMetadata(ApiObject):
+class VMMetadata(Metadata):
     def __init__(self, metadata: Dict[str, Any]) -> None:
-        self._metadata = metadata
-
-    @property
-    def uuid(self) -> str:
-        return self._metadata.get("uuid")
-
-    def get_info(self) -> Dict[str, Any]:
-        return {"metadata": self._metadata}
+        super().__init__(metadata)
 
 
-class VMSpec(ApiObject):
+class VMSpec(Spec):
     def __init__(self, spec: Dict[str, Any]) -> None:
-        self._spec = spec
+        super().__init__(spec)
 
     @property
     def cluster_reference(self) -> Dict[str, str]:
@@ -32,10 +26,6 @@ class VMSpec(ApiObject):
     @property
     def cluster_reference_name(self) -> Dict[str, Any]:
         return self.cluster_reference.get("name", {})
-
-    @property
-    def resources(self) -> Dict[str, Any]:
-        return self._spec.get("resources", {})
 
     @property
     def nic_list(self) -> List[Dict[str, Any]]:
@@ -86,39 +76,24 @@ class VMSpec(ApiObject):
     def disk_list(self) -> List[Dict[str, Any]]:
         return self.resources.get("disk_list")
 
-    @property
-    def name(self) -> str:
-        return self._spec.get("name", "")
 
-    def get_info(self) -> Dict[str, Any]:
-        return {"spec": self._spec}
-
-
-class VMStatus(ApiObject):
+class VMStatus(Status):
     def __init__(self, status: Dict[str, Any]) -> None:
-        self._status = status
-
-    def get_info(self) -> Dict[str, Any]:
-        return {"status": self._status}
+        super().__init__(status)
 
 
-class VirtualMachine(ApiObject):
+class NutanixVM(ApiObject):
+    status: VMStatus
+    spec: VMSpec
+    metadata: VMMetadata
+
     def __init__(self, api_client: NutanixApiClient, **kwargs) -> None:
-        self.status: VMStatus = VMStatus(kwargs.get("status", {}))
-        self.spec: VMSpec = VMSpec(kwargs.get("spec", {}))
-        self.metadata: VMMetadata = VMMetadata(kwargs.get("metadata", {}))
-        self._api_client = api_client
-
-    def get_info(self) -> Dict[str, Any]:
-        return {**self.spec.get_info(), **self.metadata.get_info(), **self.status.get_info()}
-
-    @property
-    def name(self) -> str:
-        return self.spec.name
-
-    @property
-    def uuid(self) -> str:
-        return self.metadata.uuid
+        super().__init__(
+            api_client,
+            VMStatus(kwargs.get("status", {})),
+            VMSpec(kwargs.get("spec", {})),
+            VMMetadata(kwargs.get("metadata", {})),
+        )
 
     @property
     def power_state(self) -> str:
@@ -136,25 +111,23 @@ class VirtualMachine(ApiObject):
     def ip_addresses(self) -> List[str]:
         return self.spec.ip_endpoint_list
 
-    def load(self, uuid: str) -> "VirtualMachine":
-        vm = self.get_vm(uuid)
-        self.spec = vm.spec
-        self.metadata = vm.metadata
-        self.status = vm.status
-        return self
+    @classmethod
+    def list_vms(cls, api_client: NutanixApiClient) -> List["NutanixVM"]:
+        return [NutanixVM(api_client, **vm_info) for vm_info in api_client.POST("/vms/list")["entities"]]
 
     @classmethod
-    def list_vms(cls, api_client: NutanixApiClient) -> List["VirtualMachine"]:
-        return [VirtualMachine(api_client, **vm_info) for vm_info in api_client.POST("/vms/list")["entities"]]
-
-    @classmethod
-    def get_vm(cls, api_client: NutanixApiClient, uuid: str) -> "VirtualMachine":
+    def get(cls, api_client: NutanixApiClient, uuid: str) -> "NutanixVM":
         vm_info = api_client.GET(f"/vms/{uuid}")
-        return VirtualMachine(api_client, **vm_info)
+        return NutanixVM(
+            api_client,
+            status=VMStatus(vm_info.get("status", {})),
+            spec=VMSpec(vm_info.get("spec", {})),
+            metadata=VMMetadata(vm_info.get("metadata", {})),
+        )
 
     @classmethod
     def set_vms_power_state(cls, api_client: NutanixApiClient, uuid: str, state: PowerState):
-        vm = cls.get_vm(uuid)
+        vm = cls.get(uuid)
         vm.power_state = state.value
 
         vm_info = vm.get_info()

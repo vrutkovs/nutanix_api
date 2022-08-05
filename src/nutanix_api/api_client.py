@@ -1,17 +1,10 @@
 import warnings
-from abc import ABC, abstractmethod
 from http import HTTPStatus
 from typing import Any, Callable, Dict, Union
 
 import requests
 from requests import Session
 from urllib3.exceptions import InsecureRequestWarning, RequestError
-
-
-class ApiObject(ABC):
-    @abstractmethod
-    def get_info(self) -> Dict[str, Any]:
-        pass
 
 
 class NutanixSession:
