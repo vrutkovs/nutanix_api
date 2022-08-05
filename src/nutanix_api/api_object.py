@@ -14,6 +14,10 @@ class Status(ApiInfo):
     def __init__(self, status: Dict[str, Any]) -> None:
         self._status = status
 
+    @property
+    def resources(self) -> Dict[str, Any]:
+        return self._status.get("resources", {})
+
     def get_info(self) -> Dict[str, Any]:
         return {"status": self._status}
 
