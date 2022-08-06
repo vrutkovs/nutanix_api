@@ -133,8 +133,8 @@ class NutanixVM(ApiObject):
         del vm_info["status"]
         return api_client.PUT(f"/vms/{uuid}", body=vm_info)
 
-    def turn_off(self):
+    def power_off(self):
         return self.set_vms_power_state(self._api_client, self.uuid, PowerState.OFF)
 
-    def turn_on(self):
+    def power_on(self):
         return self.set_vms_power_state(self._api_client, self.uuid, PowerState.ON)
