@@ -126,8 +126,8 @@ class NutanixVM(ApiObject):
 
     @classmethod
     def set_vms_power_state(cls, api_client: NutanixApiClient, uuid: str, state: PowerState):
-        vm = cls.get(uuid)
-        vm.power_state = state.value
+        vm = cls.get(api_client, uuid)
+        vm.power_state = state
 
         vm_info = vm.get_info()
         del vm_info["status"]
@@ -138,3 +138,6 @@ class NutanixVM(ApiObject):
 
     def power_on(self):
         return self.set_vms_power_state(self._api_client, self.uuid, PowerState.ON)
+
+    def reboot(self):
+        return self._api_client.POST(f"/vms/{self.uuid}/acpi_reboot")

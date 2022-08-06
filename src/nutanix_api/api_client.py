@@ -30,6 +30,9 @@ class NutanixSession:
             warnings.simplefilter("default", InsecureRequestWarning)
 
         self._session.close()
+        if exc_val:
+            raise exc_val
+
         return self
 
 
@@ -47,11 +50,11 @@ class NutanixApiClient:
     def _request(
         cls, url: str, method: Callable, body: Dict[str, Any] = None, offset: int = 0, timeout=DEFAULT_REQUEST_TIMEOUT
     ):
-        if body is not None:
+        if body is not None and offset != 0:
             body["offset"] = offset
         server_response = method(url, timeout=timeout) if body is None else method(url, json=body)
         if server_response.status_code != HTTPStatus.OK and server_response.status_code != HTTPStatus.ACCEPTED:
-            raise RequestError(server_response.json())
+            raise RequestError(str((server_response.json())))
 
         return server_response.json()
 
