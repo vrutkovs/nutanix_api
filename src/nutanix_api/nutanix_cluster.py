@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 
 from .api_client import NutanixApiClient
-from .api_object import Metadata, Spec, Status, V3ApiObject
+from .entity import Entity, Metadata, Spec, Status
 
 
 class ClusterStatus(Status):
@@ -38,7 +38,7 @@ class ClusterMetadata(Metadata):
     pass
 
 
-class NutanixCluster(V3ApiObject):
+class NutanixCluster(Entity):
     status: ClusterStatus
     spec: ClusterSpec
     metadata: ClusterMetadata
@@ -72,3 +72,7 @@ class NutanixCluster(V3ApiObject):
     @property
     def internal_subnet(self) -> str:
         return self.spec.internal_subnet
+
+    @classmethod
+    def list_entities(cls, api_client: NutanixApiClient, get_all: bool = True) -> List["NutanixCluster"]:
+        return super().list_entities(api_client, get_all)

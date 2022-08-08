@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
+import waiting
+
 from .api_client import NutanixApiClient
 
 
@@ -46,12 +48,19 @@ class Metadata(ApiInfo):
     def uuid(self) -> str:
         return self._metadata.get("uuid")
 
+    @property
+    def entity_version(self):
+        return self._metadata.get("entity_version")
+
     def get_info(self) -> Dict[str, Any]:
         return {"metadata": self._metadata}
 
 
-class V3ApiObject(ABC):
+class Entity(ApiInfo, ABC):
     base_route = ""  # Need to override on each Inheriting class
+
+    WAIT_INTERVAL = 3
+    TIMEOUT = 30
 
     def __init__(self, api_client: NutanixApiClient, status: Status, spec: Spec, metadata: Metadata) -> None:
         self._api_client = api_client
@@ -79,15 +88,22 @@ class V3ApiObject(ABC):
     def uuid(self) -> str:
         return self.metadata.uuid
 
+    @property
+    def entity_version(self) -> str:
+        return self.metadata.entity_version
+
     def get_info(self) -> Dict[str, Any]:
         return {**self._spec.get_info(), **self._metadata.get_info(), **self._status.get_info()}
+
+    def get_info_for_update(self) -> Dict[str, Any]:
+        return {**self._spec.get_info(), **self._metadata.get_info()}
 
     @classmethod
     def __assert_base_route(cls):
         assert cls.base_route, f"base_route cant be unset on {cls.__name__}"
 
     @classmethod
-    def get(cls, api_client: NutanixApiClient, uuid: str) -> "V3ApiObject":
+    def get(cls, api_client: NutanixApiClient, uuid: str) -> "Entity":
         cls.__assert_base_route()
         vm_info = api_client.GET(f"/{cls.base_route}/{uuid}")
         return cls.get_from_info(api_client, vm_info)
@@ -110,7 +126,7 @@ class V3ApiObject(ABC):
 
         return [cls.get_from_info(api_client, info) for info in entities]
 
-    def load(self, uuid: str) -> "V3ApiObject":
+    def load(self, uuid: str) -> "Entity":
         vm = self.get(self._api_client, uuid)
         self._spec = vm.spec
         self._metadata = vm.metadata
@@ -118,10 +134,34 @@ class V3ApiObject(ABC):
         return self
 
     @classmethod
-    def get_from_info(cls, api_client: NutanixApiClient, info: Dict[str, Any]) -> "V3ApiObject":
+    def get_from_info(cls, api_client: NutanixApiClient, info: Dict[str, Any]) -> "Entity":
         return cls(
             api_client,
             status=info.get("status", {}),
             spec=info.get("spec", {}),
             metadata=info.get("metadata", {}),
         )
+
+    def _wait_for_update(self, wait_interval: int, timeout: int):
+        try:
+            waiting.wait(
+                lambda: self.get(self._api_client, self.uuid).entity_version > self.entity_version,
+                timeout_seconds=timeout,
+                sleep_seconds=wait_interval,
+            )
+        except waiting.exceptions.TimeoutExpired as e:
+            raise TimeoutError(
+                f"The timeout waiting for updating {self.__class__.__name__} " f"uuid={self.uuid} was expired"
+            ) from e
+
+    def update_entity(self, wait: bool = True, wait_interval: int = WAIT_INTERVAL, timeout: int = TIMEOUT):
+        result = self._api_client.PUT(f"/{self.base_route}/{self.uuid}", body=self.get_info_for_update())
+
+        self._spec._spec = result["spec"]
+        self._status._status = result["status"]
+        self._metadata._metadata = result["metadata"]
+
+        if wait:
+            self._wait_for_update(wait_interval, timeout)
+
+        return result

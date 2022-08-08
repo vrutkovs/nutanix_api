@@ -1,5 +1,7 @@
+from typing import List
+
 from .api_client import NutanixApiClient
-from .api_object import Metadata, Spec, Status, V3ApiObject
+from .entity import Entity, Metadata, Spec, Status
 
 
 class ImageStatus(Status):
@@ -30,7 +32,7 @@ class ImageMetadata(Metadata):
     pass
 
 
-class NutanixImage(V3ApiObject):
+class NutanixImage(Entity):
     status: ImageStatus
     spec: ImageSpec
     metadata: ImageMetadata
@@ -64,3 +66,7 @@ class NutanixImage(V3ApiObject):
     @property
     def description(self) -> str:
         return self.spec.description
+
+    @classmethod
+    def list_entities(cls, api_client: NutanixApiClient, get_all: bool = True) -> List["NutanixImage"]:
+        return super().list_entities(api_client, get_all)
