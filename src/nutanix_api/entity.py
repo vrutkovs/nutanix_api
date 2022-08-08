@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
-
-import waiting
+from typing import Any, Dict, List
 
 from .api_client import NutanixApiClient
+from .base_entity import BaseEntity
+from .nutanix_task import NutanixTask
 
 
 class ApiInfo(ABC):
@@ -56,14 +56,14 @@ class Metadata(ApiInfo):
         return {"metadata": self._metadata}
 
 
-class Entity(ApiInfo, ABC):
+class Entity(BaseEntity, ApiInfo, ABC):
     WAIT_INTERVAL = 3
     UPDATE_WAIT_TIMEOUT = 300
 
     base_route = ""  # Need to override on each Inheriting class
 
     def __init__(self, api_client: NutanixApiClient, status: Status, spec: Spec, metadata: Metadata) -> None:
-        self._api_client = api_client
+        super().__init__(api_client)
         self._status: Status = status
         self._spec: Spec = spec
         self._metadata: Metadata = metadata
@@ -99,31 +99,8 @@ class Entity(ApiInfo, ABC):
         return {**self._spec.get_info(), **self._metadata.get_info()}
 
     @classmethod
-    def __assert_base_route(cls):
-        assert cls.base_route, f"base_route cant be unset on {cls.__name__}"
-
-    @classmethod
-    def get(cls, api_client: NutanixApiClient, uuid: str) -> "Entity":
-        cls.__assert_base_route()
-        vm_info = api_client.GET(f"/{cls.base_route}/{uuid}")
-        return cls.get_from_info(api_client, vm_info)
-
-    @classmethod
-    def list_entities(cls, api_client: NutanixApiClient, get_all: bool = True):
-        response = None
-        entities = []
-        offset = 0
-
-        cls.__assert_base_route()
-
-        while response is None or len(entities) < response["metadata"]["total_matches"]:
-            response = api_client.POST(f"/{cls.base_route}/list", offset=offset)
-            entities += response["entities"]
-            offset = response["metadata"].get("length", 0)
-
-            if not get_all or offset == 0:
-                break
-
+    def list_entities(cls, api_client: NutanixApiClient, get_all: bool = True) -> List["Entity"]:
+        entities = super().list_entities(api_client, get_all)
         return [cls.get_from_info(api_client, info) for info in entities]
 
     def load(self, uuid: str) -> "Entity":
@@ -142,18 +119,6 @@ class Entity(ApiInfo, ABC):
             metadata=info.get("metadata", {}),
         )
 
-    def _wait_for_update(self, wait_interval: int, timeout: int):
-        try:
-            waiting.wait(
-                lambda: self.get(self._api_client, self.uuid).entity_version > self.entity_version,
-                timeout_seconds=timeout,
-                sleep_seconds=wait_interval,
-            )
-        except waiting.exceptions.TimeoutExpired as e:
-            raise TimeoutError(
-                f"The timeout waiting for updating {self.__class__.__name__} " f"uuid={self.uuid} was expired"
-            ) from e
-
     def update_entity(self, wait: bool = True, wait_interval: int = WAIT_INTERVAL, timeout: int = UPDATE_WAIT_TIMEOUT):
         body = self.get_info_for_update()
         result = self._api_client.PUT(f"/{self.base_route}/{self.uuid}", body=body)
@@ -161,7 +126,8 @@ class Entity(ApiInfo, ABC):
         self._status._status = result["status"]
         self._metadata._metadata = result["metadata"]
 
+        task = NutanixTask.get(self._api_client, result["status"].get("execution_context", {}).get("task_uuid"))
         if wait:
-            self._wait_for_update(wait_interval, timeout)
+            task.wait_to_complete(wait_interval=wait_interval, timeout=timeout)
 
         return result

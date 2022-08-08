@@ -186,12 +186,12 @@ class NutanixVM(Entity):
     def power_off(self, wait: bool = True, timeout: int = Entity.UPDATE_WAIT_TIMEOUT):
         self.load(self.uuid)
         self.spec.power_state = PowerState.OFF
-        return self.update_entity(wait, timeout)
+        return self.update_entity(wait, timeout=timeout)
 
     def power_on(self, wait: bool = True, timeout: int = Entity.UPDATE_WAIT_TIMEOUT):
         self.load(self.uuid)
         self.spec.power_state = PowerState.ON
-        return self.update_entity(wait, timeout)
+        return self.update_entity(wait, timeout=timeout)
 
     def reboot(self):
         return self._api_client.POST(f"/{self.base_route}/{self.uuid}/acpi_reboot")
@@ -203,4 +203,4 @@ class NutanixVM(Entity):
         timeout: int = Entity.UPDATE_WAIT_TIMEOUT,
     ):
         self.spec.boot_device_order = vm_boot_devices
-        return self.update_entity(wait, timeout)
+        return self.update_entity(wait, timeout=timeout)
