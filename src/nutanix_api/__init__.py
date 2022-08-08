@@ -1,7 +1,7 @@
 from .api_client import NutanixApiClient, NutanixSession
 from .nutanix_cluster import ClusterMetadata, ClusterSpec, ClusterStatus, NutanixCluster
 from .nutanix_image import ImageMetadata, ImageSpec, ImageStatus, NutanixImage
-from .nutanix_vm import NutanixVM, PowerState, VMMetadata, VMSpec, VMStatus
+from .nutanix_vm import NutanixVM, NutanixVMLabel, PowerState, VMMetadata, VMSpec, VMStatus
 
 __all__ = [
     "PowerState",
@@ -21,4 +21,5 @@ __all__ = [
     "ClusterStatus",
     "ClusterSpec",
     "exceptions",
+    "NutanixVMLabel",
 ]

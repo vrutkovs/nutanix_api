@@ -50,9 +50,10 @@ class Metadata(ApiInfo):
         return {"metadata": self._metadata}
 
 
-class ApiObject(ABC):
-    def __init__(self, api_client: NutanixApiClient, status: Status, spec: Spec, metadata: Metadata) -> None:
+class V3ApiObject(ABC):
+    base_route = ""  # Need to override on each Inheriting class
 
+    def __init__(self, api_client: NutanixApiClient, status: Status, spec: Spec, metadata: Metadata) -> None:
         self._api_client = api_client
         self._status: Status = status
         self._spec: Spec = spec
@@ -82,18 +83,25 @@ class ApiObject(ABC):
         return {**self._spec.get_info(), **self._metadata.get_info(), **self._status.get_info()}
 
     @classmethod
-    @abstractmethod
-    def get(cls, api_client: NutanixApiClient, uuid: str) -> "ApiObject":
-        pass
+    def __assert_base_route(cls):
+        assert cls.base_route, f"base_route cant be unset on {cls.__name__}"
 
     @classmethod
-    def list_entities(cls, api_client: NutanixApiClient, object_route: str, get_all: bool = True):
+    def get(cls, api_client: NutanixApiClient, uuid: str) -> "V3ApiObject":
+        cls.__assert_base_route()
+        vm_info = api_client.GET(f"/{cls.base_route}/{uuid}")
+        return cls.get_from_info(api_client, vm_info)
+
+    @classmethod
+    def list_entities(cls, api_client: NutanixApiClient, get_all: bool = True):
         response = None
         entities = []
         offset = 0
 
+        cls.__assert_base_route()
+
         while response is None or len(entities) < response["metadata"]["total_matches"]:
-            response = api_client.POST(f"/{object_route}/list", offset=offset)
+            response = api_client.POST(f"/{cls.base_route}/list", offset=offset)
             entities += response["entities"]
             offset = response["metadata"].get("length", 0)
 
@@ -102,7 +110,7 @@ class ApiObject(ABC):
 
         return [cls.get_from_info(api_client, info) for info in entities]
 
-    def load(self, uuid: str) -> "ApiObject":
+    def load(self, uuid: str) -> "V3ApiObject":
         vm = self.get(self._api_client, uuid)
         self._spec = vm.spec
         self._metadata = vm.metadata
@@ -110,7 +118,7 @@ class ApiObject(ABC):
         return self
 
     @classmethod
-    def get_from_info(cls, api_client: NutanixApiClient, info: Dict[str, Any]) -> "ApiObject":
+    def get_from_info(cls, api_client: NutanixApiClient, info: Dict[str, Any]) -> "V3ApiObject":
         return cls(
             api_client,
             status=info.get("status", {}),

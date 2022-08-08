@@ -1,7 +1,5 @@
-from typing import List
-
 from .api_client import NutanixApiClient
-from .api_object import ApiObject, Metadata, Spec, Status
+from .api_object import Metadata, Spec, Status, V3ApiObject
 
 
 class ImageStatus(Status):
@@ -32,10 +30,12 @@ class ImageMetadata(Metadata):
     pass
 
 
-class NutanixImage(ApiObject):
+class NutanixImage(V3ApiObject):
     status: ImageStatus
     spec: ImageSpec
     metadata: ImageMetadata
+
+    base_route = "images"
 
     def __init__(self, api_client: NutanixApiClient, **kwargs) -> None:
         super().__init__(
@@ -64,12 +64,3 @@ class NutanixImage(ApiObject):
     @property
     def description(self) -> str:
         return self.spec.description
-
-    @classmethod
-    def get(cls, api_client: NutanixApiClient, uuid: str) -> "NutanixImage":
-        images_info = api_client.GET(f"/images/{uuid}")
-        return cls.get_from_info(api_client, images_info)
-
-    @classmethod
-    def list_images(cls, api_client: NutanixApiClient, get_all: bool = True) -> List["NutanixImage"]:
-        return cls.list_entities(api_client, "images", get_all)

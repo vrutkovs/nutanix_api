@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Any, Dict, List, Union
 
-from .api_client import NutanixApiClient
-from .api_object import ApiObject, Metadata, Spec, Status
+from .api_client import ApiVersion, NutanixApiClient
+from .api_object import Metadata, Spec, Status, V3ApiObject
 
 
 class PowerState(Enum):
@@ -82,10 +82,56 @@ class VMStatus(Status):
         super().__init__(status)
 
 
-class NutanixVM(ApiObject):
+class NutanixVMLabel:
+    def __init__(self, **entity_info) -> None:
+        self._uuid = entity_info.get("uuid")
+        self._name = entity_info.get("name")
+        self._description = entity_info.get("description")
+        self._entity_type = entity_info.get("entityType")
+        self._create_timestamp = entity_info.get("createTimestampUSecs")
+        self._last_modified_timestamp = entity_info.get("lastModifiedTimestampUSecs")
+
+    @property
+    def uuid(self):
+        return self._uuid
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def description(self):
+        return self._description
+
+    @property
+    def entity_type(self):
+        return self._entity_type
+
+    @property
+    def create_timestamp(self):
+        return self._create_timestamp
+
+    @property
+    def last_modified_timestamp(self):
+        return self._last_modified_timestamp
+
+    @classmethod
+    def get(cls, api_client: NutanixApiClient, name: str) -> "NutanixVMLabel":
+        response = api_client.GET("tags", api_version=ApiVersion.V1)
+        return NutanixVMLabel(**next(label for label in response.get("entities", []) if label["name"] == name))
+
+    @classmethod
+    def create(cls, api_client: NutanixApiClient, name: str) -> "NutanixVMLabel":
+        response = api_client.POST("tags", api_version=ApiVersion.V1, body={"name": name, "entityType": "vm"})
+        return NutanixVMLabel(**response)
+
+
+class NutanixVM(V3ApiObject):
     status: VMStatus
     spec: VMSpec
     metadata: VMMetadata
+
+    base_route = "vms"
 
     def __init__(self, api_client: NutanixApiClient, **kwargs) -> None:
         super().__init__(
@@ -116,22 +162,13 @@ class NutanixVM(ApiObject):
         return self.spec.sockets
 
     @classmethod
-    def list_vms(cls, api_client: NutanixApiClient, get_all: bool = True) -> List["NutanixVM"]:
-        return cls.list_entities(api_client, "vms", get_all)
-
-    @classmethod
-    def get(cls, api_client: NutanixApiClient, uuid: str) -> "NutanixVM":
-        vm_info = api_client.GET(f"/vms/{uuid}")
-        return cls.get_from_info(api_client, vm_info)
-
-    @classmethod
     def set_vms_power_state(cls, api_client: NutanixApiClient, uuid: str, state: PowerState):
         vm = cls.get(api_client, uuid)
         vm.power_state = state
-
         vm_info = vm.get_info()
+
         del vm_info["status"]
-        return api_client.PUT(f"/vms/{uuid}", body=vm_info)
+        return api_client.PUT(f"/{cls.base_route}/{uuid}", body=vm_info)
 
     def power_off(self):
         return self.set_vms_power_state(self._api_client, self.uuid, PowerState.OFF)
@@ -140,4 +177,4 @@ class NutanixVM(ApiObject):
         return self.set_vms_power_state(self._api_client, self.uuid, PowerState.ON)
 
     def reboot(self):
-        return self._api_client.POST(f"/vms/{self.uuid}/acpi_reboot")
+        return self._api_client.POST(f"/{self.base_route}/{self.uuid}/acpi_reboot")
