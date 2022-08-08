@@ -183,19 +183,24 @@ class NutanixVM(Entity):
     def num_sockets(self) -> int:
         return self.spec.sockets
 
-    def power_off(self, wait: bool = True):
+    def power_off(self, wait: bool = True, timeout: int = Entity.UPDATE_WAIT_TIMEOUT):
         self.load(self.uuid)
         self.spec.power_state = PowerState.OFF
-        return self.update_entity(wait)
+        return self.update_entity(wait, timeout)
 
-    def power_on(self, wait: bool = True):
+    def power_on(self, wait: bool = True, timeout: int = Entity.UPDATE_WAIT_TIMEOUT):
         self.load(self.uuid)
         self.spec.power_state = PowerState.ON
-        return self.update_entity(wait)
+        return self.update_entity(wait, timeout)
 
     def reboot(self):
         return self._api_client.POST(f"/{self.base_route}/{self.uuid}/acpi_reboot")
 
-    def update_boot_order(self, vm_boot_devices: List[VMBootDevices], wait: bool = True):
+    def update_boot_order(
+        self,
+        vm_boot_devices: List[VMBootDevices],
+        wait: bool = True,
+        timeout: int = Entity.UPDATE_WAIT_TIMEOUT,
+    ):
         self.spec.boot_device_order = vm_boot_devices
-        return self.update_entity(wait)
+        return self.update_entity(wait, timeout)

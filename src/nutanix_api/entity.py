@@ -57,10 +57,10 @@ class Metadata(ApiInfo):
 
 
 class Entity(ApiInfo, ABC):
-    base_route = ""  # Need to override on each Inheriting class
-
     WAIT_INTERVAL = 3
-    TIMEOUT = 30
+    UPDATE_WAIT_TIMEOUT = 300
+
+    base_route = ""  # Need to override on each Inheriting class
 
     def __init__(self, api_client: NutanixApiClient, status: Status, spec: Spec, metadata: Metadata) -> None:
         self._api_client = api_client
@@ -154,9 +154,9 @@ class Entity(ApiInfo, ABC):
                 f"The timeout waiting for updating {self.__class__.__name__} " f"uuid={self.uuid} was expired"
             ) from e
 
-    def update_entity(self, wait: bool = True, wait_interval: int = WAIT_INTERVAL, timeout: int = TIMEOUT):
-        result = self._api_client.PUT(f"/{self.base_route}/{self.uuid}", body=self.get_info_for_update())
-
+    def update_entity(self, wait: bool = True, wait_interval: int = WAIT_INTERVAL, timeout: int = UPDATE_WAIT_TIMEOUT):
+        body = self.get_info_for_update()
+        result = self._api_client.PUT(f"/{self.base_route}/{self.uuid}", body=body)
         self._spec._spec = result["spec"]
         self._status._status = result["status"]
         self._metadata._metadata = result["metadata"]
